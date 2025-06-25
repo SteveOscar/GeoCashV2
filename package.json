@@ -38,7 +38,9 @@
     "react-native-web": "~0.20.0",
     "react-native-webview": "13.13.5",
     "expo-sensors": "~14.1.4",
-    "react-native-svg": "15.11.2"
+    "react-native-svg": "15.11.2",
+    "expo-location": "~18.1.5",
+    "expo-screen-orientation": "~8.1.7"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

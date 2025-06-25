@@ -5,7 +5,7 @@ import Svg, { Circle, G, Line, Text as SvgText } from 'react-native-svg';
 
 const { width, height } = Dimensions.get('window');
 
-export default function TransponderScreen() {
+export default function TransponderCompass() {
   const [magnetometerData, setMagnetometerData] = useState({ x: 0, y: 0, z: 0 });
   const [accelerometerData, setAccelerometerData] = useState({ x: 0, y: 0, z: 0 });
   const [heading, setHeading] = useState(0);
@@ -17,13 +17,15 @@ export default function TransponderScreen() {
     const magnetometerSubscription = Magnetometer.addListener((data) => {
       setMagnetometerData(data);
       
-      // Calculate heading from magnetometer data
-      // atan2(y, x) gives angle from positive x-axis
-      // We need to convert to compass bearing (0° = North, clockwise)
-      let angle = Math.atan2(data.x, data.y) * (180 / Math.PI);
+      // Calculate magnetic heading
+      // In device coordinates: +X is right, +Y is up, +Z is out of screen
+      // For compass: 0° = North, 90° = East, 180° = South, 270° = West
+      let angle = Math.atan2(-data.x, data.y) * (180 / Math.PI);
       
-      // Convert to compass heading (0° = North, clockwise)
-      angle = (angle + 360) % 360;
+      // Normalize to 0-360 degrees
+      if (angle < 0) {
+        angle += 360;
+      }
       
       setHeading(angle);
     });
@@ -50,13 +52,28 @@ export default function TransponderScreen() {
   const centerX = compassSize / 2;
   const centerY = compassSize / 2;
 
-  // Calculate device tilt for compass compensation
-  const tiltCompensation = Math.atan2(accelerometerData.y, accelerometerData.z) * (180 / Math.PI);
-  const rollCompensation = Math.atan2(accelerometerData.x, accelerometerData.z) * (180 / Math.PI);
+  // Calculate device orientation
+  const pitch = Math.atan2(accelerometerData.y, accelerometerData.z) * (180 / Math.PI);
+  const roll = Math.atan2(accelerometerData.x, accelerometerData.z) * (180 / Math.PI);
 
-  // For compass, we want to rotate the compass rose, not add to the heading
-  // The compass rose should rotate opposite to device rotation to stay oriented to earth
-  const compassRotation = -heading;
+  // Apply tilt compensation to magnetometer readings
+  const cosRoll = Math.cos(roll * Math.PI / 180);
+  const sinRoll = Math.sin(roll * Math.PI / 180);
+  const cosPitch = Math.cos(pitch * Math.PI / 180);
+  const sinPitch = Math.sin(pitch * Math.PI / 180);
+
+  // Tilt-compensated magnetometer values
+  const magX = magnetometerData.x * cosPitch + magnetometerData.z * sinPitch;
+  const magY = magnetometerData.x * sinRoll * sinPitch + magnetometerData.y * cosRoll - magnetometerData.z * sinRoll * cosPitch;
+
+  // Calculate tilt-compensated heading
+  let compensatedHeading = Math.atan2(-magX, magY) * (180 / Math.PI);
+  if (compensatedHeading < 0) {
+    compensatedHeading += 360;
+  }
+
+  // The compass rose should rotate to keep North pointing up
+  const compassRotation = -compensatedHeading;
 
   return (
     <View style={styles.container}>
@@ -220,6 +237,11 @@ export default function TransponderScreen() {
         
         <View style={styles.dataRow}>
           <Text style={styles.dataLabel}>HEADING:</Text>
+          <Text style={styles.dataValue}>{Math.round(compensatedHeading)}°</Text>
+        </View>
+        
+        <View style={styles.dataRow}>
+          <Text style={styles.dataLabel}>RAW HDG:</Text>
           <Text style={styles.dataValue}>{Math.round(heading)}°</Text>
         </View>
         
@@ -239,7 +261,12 @@ export default function TransponderScreen() {
         
         <View style={styles.dataRow}>
           <Text style={styles.dataLabel}>TILT:</Text>
-          <Text style={styles.dataValue}>{Math.round(tiltCompensation)}° / {Math.round(rollCompensation)}°</Text>
+          <Text style={styles.dataValue}>P: {Math.round(pitch)}° R: {Math.round(roll)}°</Text>
+        </View>
+        
+        <View style={styles.dataRow}>
+          <Text style={styles.dataLabel}>MAG COMP:</Text>
+          <Text style={styles.dataValue}>X: {magX.toFixed(2)} Y: {magY.toFixed(2)}</Text>
         </View>
       </View>
     </View>

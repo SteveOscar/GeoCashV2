@@ -3,10 +3,10 @@
 // import ParallaxScrollView from '@/components/ParallaxScrollView';
 // import { ThemedText } from '@/components/ThemedText';
 // import { ThemedView } from '@/components/ThemedView';
-import TransponderScreen from './transponder';
+import TransponderCompass from './transponderCompass';
 
 export default function HomeScreen() {
-  return <TransponderScreen />
+  return <TransponderCompass />
 }
 
 
